@@ -21,47 +21,63 @@ class ReceiptService {
 
       // 3. Generate hash to detect duplicates
       const fileHash = await generateFileHashFromFile(file.path);
-      const existingReceipt = await receiptRepository.findByHash(fileHash);
-      if (existingReceipt) {
-        throw new Error('Duplicate receipt detected in the system.');
+      let receipt = await receiptRepository.findByHash(fileHash);
+      let isDuplicate = false;
+
+      if (receipt) {
+         // Duplicate detected -> Flag violation as per architecture rules securely instead of throwing error natively
+         isDuplicate = true;
+         const duplicateViolation = {
+             type: 'DUPLICATE_RECEIPT',
+             field: 'hash',
+             message: 'A mathematically identical receipt has already been organically uploaded into the system.'
+         };
+         await expenseRepository.findByIdAndUpdate(expenseId, {
+             $push: { violations: duplicateViolation, receipt_ids: receipt._id },
+             receipt_processing_status: 'DONE'
+         });
+
+         await auditService.log('Expense', expenseId, 'EXPENSE_UPDATED', userId, null, { violations_added: 1 });
+      } else {
+         // 4. Create NEW receipt record seamlessly
+         const receiptData = {
+           expense_id: expenseId,
+           file_url: file.path, 
+           file_type: file.mimetype,
+           hash: fileHash,
+           ocr_status: 'PENDING',
+           validation_status: 'PENDING'
+         };
+
+         receipt = await receiptRepository.create(receiptData);
+
+         // 5. Link structurally to expense
+         await expenseRepository.findByIdAndUpdate(
+           expenseId, 
+           { 
+             $push: { receipt_ids: receipt._id },
+             receipt_processing_status: 'PENDING'
+           }
+         );
       }
-
-      // 4. Create receipt record
-      const receiptData = {
-        expense_id: expenseId,
-        file_url: file.path, // In real-world, S3 url
-        file_type: file.mimetype,
-        hash: fileHash,
-        ocr_status: 'PENDING',
-        validation_status: 'PENDING'
-      };
-
-      const receipt = await receiptRepository.create(receiptData);
-
-      // 5. Link receipt to expense
-      await expenseRepository.findByIdAndUpdate(
-        expenseId, 
-        { 
-          $push: { receipt_ids: receipt._id },
-          receipt_processing_status: 'PENDING'
-        }
-      );
 
       // 6. Audit Logging
       await auditService.log(
         'Receipt',
         receipt._id,
-        'UPLOAD_RECEIPT',
+        'RECEIPT_UPLOADED',
         userId,
         null,
         { file_url: receipt.file_url, expense_id: expenseId }
       );
 
-      // 7. Enqueue OCR Job after successful transaction
-      try {
-          await queueService.addJob(receipt._id, receipt.file_url);
-      } catch (qErr) {
-          console.error("Failed to enqueue OCR job but receipt was uploaded:", qErr);
+      // 7. Enqueue OCR Job after successful transaction IF mathematically original
+      if (!isDuplicate) {
+        try {
+            await queueService.addJob(receipt._id, receipt.file_url);
+        } catch (qErr) {
+            console.error("Failed to enqueue OCR job but receipt was uploaded:", qErr);
+        }
       }
 
       return receipt;

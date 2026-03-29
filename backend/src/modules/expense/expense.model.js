@@ -38,13 +38,32 @@ const expenseSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['DRAFT', 'SUBMITTED', 'REJECTED', 'APPROVED'], 
+    enum: ['DRAFT', 'SUBMITTED', 'REJECTED', 'APPROVED', 'SENT_BACK'], 
     default: 'DRAFT',
     required: true
   },
+  approval_status: { 
+    type: String, 
+    enum: ['PENDING', 'APPROVED', 'REJECTED', 'SENT_BACK'] 
+  },
+  current_step: { type: Number },
   flags: [flagSchema],
   violations: [violationSchema],
   confidence_score: { type: Number, min: 0, max: 1 },
+  risk_score: { type: Number, min: 0, max: 1 },
+  risk_breakdown: {
+    amount_factor: { type: Number, default: 0 },
+    frequency_factor: { type: Number, default: 0 },
+    flags_factor: { type: Number, default: 0 },
+    violations_factor: { type: Number, default: 0 }
+  },
+  approval_snapshot: { type: mongoose.Schema.Types.Mixed },
+  approval_history: [{
+    role: { type: String },
+    status: { type: String },
+    comment: { type: String },
+    timestamp: { type: Date }
+  }],
   version: { type: Number, default: 1 },
   is_deleted: { type: Boolean, default: false },
 }, { timestamps: true });

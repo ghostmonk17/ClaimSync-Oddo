@@ -21,6 +21,16 @@ class ExpenseRepository {
   async findActiveById(id) {
     return Expense.findOne({ _id: id, is_deleted: false }).lean();
   }
+  async findByUserIdAndDateRange(userId, start, end) {
+    return Expense.find({
+      user_id: userId,
+      date: { $gte: start, $lte: end }
+    }).lean();
+  }
+
+  async findByUserId(userId) {
+    return Expense.find({ user_id: userId }).sort({ created_at: -1 }).lean();
+  }
 }
 
 module.exports = new ExpenseRepository();

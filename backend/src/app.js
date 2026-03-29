@@ -64,15 +64,26 @@ apiRouter.post('/auth/set-password', idempotencyMiddleware, authController.setPa
 apiRouter.post('/auth/change-password', authMiddleware, authController.changePassword);
 apiRouter.get('/auth/me', authMiddleware, authController.me);
 
+const approvalController = require('./modules/approval/approval.controller');
+// ... 
 // User Management Routes (Protected + Role-Bound)
 apiRouter.post('/users', authMiddleware, authorize(['ADMIN']), idempotencyMiddleware, userController.createUser);
 
 // Expenses routes (Protected structurally)
 apiRouter.post('/expenses', authMiddleware, idempotencyMiddleware, expenseController.createExpense);
+apiRouter.get('/expenses', authMiddleware, expenseController.getExpenses);
 apiRouter.post('/expenses/:expenseId/declaration', authMiddleware, idempotencyMiddleware, expenseController.declareMissingReceipt);
+apiRouter.post('/expenses/:id/submit', authMiddleware, idempotencyMiddleware, expenseController.submitExpense);
 
 // Receipts routes (Protected structurally)
+apiRouter.post('/receipts/extract', authMiddleware, upload.single('receipt'), receiptController.extractData);
 apiRouter.post('/receipts/upload', authMiddleware, idempotencyMiddleware, upload.single('receipt'), receiptController.uploadReceipt);
+
+// Approvals Engine routes (Protected structurally)
+apiRouter.get('/approvals/pending', authMiddleware, (req, res, next) => approvalController.getPendingApprovals(req, res, next));
+apiRouter.post('/approvals/:id/approve', authMiddleware, idempotencyMiddleware, (req, res, next) => approvalController.approveExpense(req, res, next));
+apiRouter.post('/approvals/:id/reject', authMiddleware, idempotencyMiddleware, (req, res, next) => approvalController.rejectExpense(req, res, next));
+apiRouter.post('/approvals/:id/send-back', authMiddleware, idempotencyMiddleware, (req, res, next) => approvalController.sendBackExpense(req, res, next));
 
 app.use('/api/v1', apiRouter);
 

@@ -8,6 +8,8 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+
+
     const decoded = jwtUtil.verifyToken(token);
     
     // Attach decoded user struct natively resolving globally

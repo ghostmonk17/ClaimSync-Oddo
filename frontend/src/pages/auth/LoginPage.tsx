@@ -19,15 +19,14 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
-      const roles: Record<string, string> = {
-        "admin@demo.com": "/admin/dashboard",
-        "employee@demo.com": "/employee/dashboard",
-        "manager@demo.com": "/manager/approvals",
-        "finance@demo.com": "/finance/dashboard",
-        "cfo@demo.com": "/cfo/dashboard",
-      };
-      navigate(roles[email.toLowerCase()] || "/employee/dashboard");
+      const sessionUser = await login(email, password);
+      
+      if (sessionUser.role === 'admin') navigate('/admin/dashboard');
+      else if (sessionUser.role === 'manager') navigate('/manager/approvals');
+      else if (sessionUser.role === 'finance') navigate('/finance/dashboard');
+      else if (sessionUser.role === 'cfo') navigate('/cfo/dashboard');
+      else navigate('/employee/dashboard');
+      
     } catch (err: any) {
       setError(err.message);
     } finally {

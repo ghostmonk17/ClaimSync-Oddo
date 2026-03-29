@@ -28,9 +28,14 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await signup(form);
-    navigate("/admin/dashboard");
-    setLoading(false);
+    try {
+      await signup(form);
+      navigate("/admin/dashboard");
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

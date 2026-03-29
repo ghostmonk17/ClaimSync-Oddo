@@ -1,20 +1,50 @@
+const fs = require('fs');
+const path = require('path');
+const Tesseract = require('tesseract.js');
+
 class OCRService {
   /**
-   * Mock implementation of OCR API (Google Vision / Tesseract)
-   * In a real implementation, you would:
-   * 1. Download image/pdf from S3/local
-   * 2. Preprocess (resize, grayscale, rotate)
-   * 3. Call OCR provider
+   * Real implementation of OCR API using local open-source Tesseract
    */
-  async extractText(fileUrl) {
-    // Simulate async network request
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Return mock text for simulation purposes
-    return {
-      text: "MOCK_MERCHANT INC\nDate: 2023-10-15\nTotal: $120.50\nCurrency: USD\nSome random text blur.",
-      rawResponse: {} 
-    };
+  async extractText(physicalPath, mimetype = null) {
+    try {
+      const fullPath = path.resolve(physicalPath);
+      
+      if (!fs.existsSync(fullPath)) {
+         throw new Error(`Physically missing file at ${fullPath}`);
+      }
+      
+      const fileExtension = path.extname(fullPath).toLowerCase();
+      
+      // Native PDF Parsing Handler leveraging precise document text layer extraction
+      // Use strictly provided mimetype if available, otherwise fallback to explicit string extensions organically
+      if ((mimetype && mimetype === 'application/pdf') || fileExtension === '.pdf') {
+         const pdfParse = require('pdf-parse');
+         const dataBuffer = fs.readFileSync(fullPath);
+         
+         const data = await pdfParse(dataBuffer);
+         
+         return {
+            text: data.text,
+            rawResponse: { confidence: 100, pdf_pages: data.numpages }
+         };
+      }
+      
+      // Execute organic extraction via Tesseract Workers natively for Images
+      const worker = await Tesseract.createWorker('eng');
+      try {
+         const { data: { text, confidence } } = await worker.recognize(fullPath);
+         return {
+            text: text,
+            rawResponse: { confidence }
+         };
+      } finally {
+         await worker.terminate();
+      }
+    } catch (error) {
+       console.error("OCR Engine critical failure:", error);
+       throw new Error(`OCR Algorithm precisely crashed: ${error.message || 'Unknown Native Execution Error'}`);
+    }
   }
 }
 

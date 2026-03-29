@@ -1,33 +1,27 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { api } from "@/lib/api";
 
 export type UserRole = "admin" | "employee" | "manager" | "finance" | "cfo";
 
 export interface User {
   id: string;
-  name: string;
+  name?: string;
   email: string;
   role: UserRole;
   company?: string;
   currency?: string;
+  token?: string; // Appending the JWT physically
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: { name: string; email: string; password: string; country: string }) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  signup: (data: { name: string; email: string; password: string; country: string }) => Promise<User>;
   logout: () => void;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const DEMO_USERS: Record<string, User> = {
-  "admin@demo.com": { id: "1", name: "Admin User", email: "admin@demo.com", role: "admin", company: "Acme Corp", currency: "USD" },
-  "employee@demo.com": { id: "2", name: "John Employee", email: "employee@demo.com", role: "employee", company: "Acme Corp", currency: "USD" },
-  "manager@demo.com": { id: "3", name: "Sarah Manager", email: "manager@demo.com", role: "manager", company: "Acme Corp", currency: "USD" },
-  "finance@demo.com": { id: "4", name: "Mike Finance", email: "finance@demo.com", role: "finance", company: "Acme Corp", currency: "USD" },
-  "cfo@demo.com": { id: "5", name: "Lisa CFO", email: "cfo@demo.com", role: "cfo", company: "Acme Corp", currency: "USD" },
-};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -35,34 +29,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("erms_user");
-    if (stored) setUser(JSON.parse(stored));
+    if (stored) {
+       try {
+         setUser(JSON.parse(stored));
+       } catch (err) {
+         localStorage.removeItem("erms_user");
+       }
+    }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, _password: string) => {
-    const found = DEMO_USERS[email.toLowerCase()];
-    if (!found) throw new Error("Invalid credentials. Try admin@demo.com, employee@demo.com, manager@demo.com, finance@demo.com, or cfo@demo.com");
-    setUser(found);
-    localStorage.setItem("erms_user", JSON.stringify(found));
+  const login = async (email: string, _password: string): Promise<User> => {
+    try {
+      const res = await api.post('/auth/login', { email, password: _password });
+      const { token, role } = res.data.data;
+
+      // Ensure lowercase mapping for React Router UI guards natively
+      const roleMapped = role.toLowerCase() as UserRole;
+      
+      const sessionUser: User = {
+         id: new Date().getTime().toString(), 
+         email: email, 
+         role: roleMapped, 
+         token 
+      };
+
+      setUser(sessionUser);
+      localStorage.setItem("erms_user", JSON.stringify(sessionUser));
+      return sessionUser;
+    } catch (err: any) {
+      throw new Error(err.response?.data?.message || "Invalid credentials.");
+    }
   };
 
-  const signup = async (data: { name: string; email: string; password: string; country: string }) => {
-    const currencies: Record<string, string> = { US: "USD", GB: "GBP", IN: "INR", DE: "EUR", JP: "JPY", CA: "CAD", AU: "AUD" };
-    const newUser: User = {
-      id: Date.now().toString(),
-      name: data.name,
-      email: data.email,
-      role: "admin",
-      company: "New Company",
-      currency: currencies[data.country] || "USD",
+  const signup = async (data: { name: string; email: string; password: string; country: string }): Promise<User> => {
+    const payload = {
+       name: data.name,
+       country: data.country,
+       base_currency: 'USD',
+       email: data.email,
+       password: data.password
     };
-    setUser(newUser);
-    localStorage.setItem("erms_user", JSON.stringify(newUser));
+
+    try {
+      const res = await api.post('/auth/signup', payload);
+      const { token, role } = res.data.data;
+      
+      const roleMapped = role.toLowerCase() as UserRole;
+
+      const newUser: User = {
+        id: new Date().getTime().toString(),
+        name: data.name,
+        email: data.email,
+        role: roleMapped,
+        company: "New Company",
+        token
+      };
+
+      setUser(newUser);
+      localStorage.setItem("erms_user", JSON.stringify(newUser));
+      return newUser;
+    } catch (err: any) {
+      throw new Error(err.response?.data?.message || "Registration failed.");
+    }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem("erms_user");
+    window.location.href = "/login";
   };
 
   return (

@@ -9,9 +9,8 @@ const idempotencyMiddleware = async (req, res, next) => {
   }
 
   try {
-    const payloadHash = crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
-    
-    // Check if key exists
+    const bodyString = JSON.stringify(req.body || {}) || '{}';
+    const payloadHash = crypto.createHash('sha256').update(bodyString).digest('hex');
     const existingReq = await Idempotency.findOne({ key: idempotencyKey });
 
     if (existingReq) {

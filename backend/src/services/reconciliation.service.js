@@ -31,11 +31,22 @@ class ReconciliationService {
     if (receipt.ocr_data) {
       // Check amount
       if (receipt.ocr_data.amount && Math.abs(receipt.ocr_data.amount - expense.amount) > 0.1) {
-        flags.push({
-          type: 'MISMATCH',
-          field: 'amount',
-          message: `Entered amount (${expense.amount}) differs from receipt (${receipt.ocr_data.amount})`
-        });
+        const diff = Math.abs(receipt.ocr_data.amount - expense.amount);
+        const diffPercentage = (diff / expense.amount) * 100;
+
+        if (diffPercentage > 10) { // ❌ Major mismatch (>10% discrepancy)
+          violations.push({
+            type: 'DATA_MISMATCH',
+            field: 'amount',
+            message: `Severe amount mismatch: User entered ${expense.amount}, receipt states ${receipt.ocr_data.amount}`
+          });
+        } else { // ⚠ Slight mismatch (<=10% discrepancy)
+          flags.push({
+            type: 'MISMATCH',
+            field: 'amount',
+            message: `Slight amount mismatch: User entered ${expense.amount}, receipt states ${receipt.ocr_data.amount}`
+          });
+        }
       }
 
       // Currency check
@@ -47,10 +58,10 @@ class ReconciliationService {
          });
       }
 
-      // Date mismatch (naive check, date vs yyyy-mm-dd string)
+      // Date mismatch universally robust formatting check
       if (receipt.ocr_data.date && expense.date) {
-         const rDateStr = receipt.ocr_data.date.toISOString().split('T')[0];
-         const eDateStr = expense.date.toISOString().split('T')[0];
+         const rDateStr = new Date(receipt.ocr_data.date).toISOString().split('T')[0];
+         const eDateStr = new Date(expense.date).toISOString().split('T')[0];
          if (rDateStr !== eDateStr) {
            flags.push({
              type: 'MISMATCH',
@@ -58,6 +69,23 @@ class ReconciliationService {
              message: `Entered date (${eDateStr}) differs from receipt (${rDateStr})`
            });
          }
+      }
+
+      // 🟡 Soft Flag: Low Confidence
+      if (receipt.confidence_score !== undefined && receipt.confidence_score < 0.7) {
+          flags.push({
+            type: 'LOW_CONFIDENCE',
+            field: 'ocr',
+            message: `Mathematical OCR confidence fell below required threshold (${(receipt.confidence_score * 100).toFixed(0)}%)`
+          });
+      }
+
+      // 🔴 Edge Case: Missing Fields
+      if (!receipt.ocr_data.merchant) {
+          flags.push({ type: 'MISSING_FIELD', field: 'merchant', message: 'OCR failed to legally establish merchant name' });
+      }
+      if (!receipt.ocr_data.amount) {
+          flags.push({ type: 'MISSING_FIELD', field: 'amount', message: 'OCR failed to cleanly extract transaction amount' });
       }
     }
 
