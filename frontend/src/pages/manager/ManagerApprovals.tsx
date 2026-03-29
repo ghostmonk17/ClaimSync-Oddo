@@ -5,8 +5,9 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckSquare, Clock, CheckCircle, Eye, X, Loader2, RefreshCcw } from "lucide-react";
+import { CheckSquare, Clock, CheckCircle, Eye, X, Loader2, RefreshCcw, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -27,6 +28,10 @@ export default function ManagerApprovals() {
   });
 
   const pendingTasks = approvalsRes?.data || [];
+
+  // Local analytics from raw data
+  const approvedTotal = 12; // Placeholder for backend aggregation later, or pull from different endpoint
+  const rejectedTotal = 4;
 
   // Mutations
   const actionMutation = useMutation({
@@ -63,9 +68,9 @@ export default function ManagerApprovals() {
         <h1 className="text-2xl font-semibold">Queue: Pending Approvals</h1>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard title="Pending" value={isLoading ? "-" : pendingTasks.length} icon={<Clock className="h-5 w-5" />} variant="warning" />
-          <StatCard title="Approved" value={24} subtitle="This month" icon={<CheckCircle className="h-5 w-5" />} variant="success" />
-          <StatCard title="Total Reviewed" value={86} icon={<CheckSquare className="h-5 w-5" />} variant="primary" />
+          <StatCard title="Awaiting You" value={isLoading ? "-" : pendingTasks.length} icon={<Clock className="h-5 w-5" />} variant="warning" />
+          <StatCard title="Company Approved" value={approvedTotal} subtitle="Last 30 Days" icon={<CheckCircle className="h-5 w-5" />} variant="success" />
+          <StatCard title="Policy Rejected" value={rejectedTotal} icon={<CheckSquare className="h-5 w-5" />} variant="destructive" />
         </div>
 
         <div className="bg-card border rounded-lg shadow-sm overflow-x-auto">
@@ -82,31 +87,38 @@ export default function ManagerApprovals() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/30">
-                  <th className="text-left p-3 font-medium text-muted-foreground">Expense Target</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Risk Score</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Amount</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Submitted</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Actions</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground whitespace-nowrap">Employee</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground whitespace-nowrap">Expense Domain</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground whitespace-nowrap">Stage</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground whitespace-nowrap">Risk</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground whitespace-nowrap">Request</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pendingTasks.map((t: any) => {
                   const expense = t.expense_id || {};
                   return (
-                  <tr key={t._id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                    <td className="p-3 font-medium capitalize">{expense.category || "Unknown"}</td>
+                  <tr key={t._id} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
                     <td className="p-3">
-                       <span className={`px-2 py-0.5 rounded text-xs font-bold ${expense.risk_score > 0.5 ? 'bg-destructive/20 text-destructive' : 'bg-success/20 text-success'}`}>
-                         {(expense.risk_score * 10).toFixed(1)} / 10
+                       <span className="font-bold text-sm block">{expense.user_id?.name || "System"}</span>
+                       <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded">{expense.user_id?.email || "internal@corp"}</span>
+                    </td>
+                    <td className="p-3 font-medium text-sm italic">{expense.category || "General"}</td>
+                    <td className="p-3 text-center">
+                       <Badge variant="outline" className="text-[10px] font-black border-primary/30 text-primary">S{t.step}: {t.role}</Badge>
+                    </td>
+                    <td className="p-3 text-center">
+                       <span className={`text-[10px] font-black italic rounded px-1.5 py-0.5 ${expense.risk_score > 0.5 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'}`}>
+                         {(expense.risk_score * 100).toFixed(0)}%
                        </span>
                     </td>
-                    <td className="p-3 font-semibold">{expense.currency} {(expense.amount || 0).toFixed(2)}</td>
-                    <td className="p-3 hidden md:table-cell text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
-                    <td className="p-3"><StatusBadge status={t.status.toLowerCase()} /></td>
-                    <td className="p-3">
-                      <Button variant="ghost" size="sm" onClick={() => setSelected(t)}>
-                        <Eye className="h-4 w-4 mr-2" /> View
+                    <td className="p-3 text-right font-black text-sm">
+                       {expense.currency} {(expense.amount || 0).toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full" onClick={() => setSelected(t)}>
+                        <Eye className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>
@@ -123,30 +135,107 @@ export default function ManagerApprovals() {
           {selected && selected.expense_id && (
             <div className="space-y-4">
               
-              <div className="bg-muted/30 p-4 rounded-lg flex justify-between items-center border">
+              <div className="bg-muted/30 p-4 rounded-lg flex justify-between items-center border shadow-inner">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Requested Amount</p>
-                    <p className="text-2xl font-bold">{selected.expense_id.currency} {(selected.expense_id.amount || 0).toFixed(2)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-1 italic">Requested Amount</p>
+                    <p className="text-2xl font-black text-primary">{selected.expense_id.currency} {(selected.expense_id.amount || 0).toLocaleString()}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Engine Risk Score</p>
-                    <p className={`text-xl font-bold ${selected.expense_id.risk_score > 0.5 ? 'text-destructive' : 'text-success'}`}>
-                       {(selected.expense_id.risk_score * 10).toFixed(1)} / 10.0
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-1 italic">Risk Confidence</p>
+                    <p className={`text-xl font-black ${selected.expense_id.risk_score > 0.5 ? 'text-destructive' : 'text-success'}`}>
+                       {(selected.expense_id.risk_score * 100).toFixed(0)}%
                     </p>
                   </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm px-1">
-                <div><span className="text-muted-foreground">Category:</span> <strong>{selected.expense_id.category}</strong></div>
-                <div><span className="text-muted-foreground">Workflow SLA:</span> {new Date(selected.due_date).toLocaleDateString()}</div>
-                <div className="col-span-2">
-                   <span className="text-muted-foreground">Policy Violations:</span> {selected.expense_id.violations?.length || 0}
+              <div className="grid grid-cols-2 gap-3 text-sm px-1 mt-2">
+                <div className="flex flex-col"><span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Submitting Employee</span> <strong className="text-base">{selected.expense_id.user_id?.name || "System Record"}</strong></div>
+                <div className="flex flex-col"><span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Current Approval Stage</span> <strong className="text-base text-primary">Step {selected.step}: {selected.role}</strong></div>
+                <div className="flex flex-col"><span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Category Branch</span> <strong>{selected.expense_id.category}</strong></div>
+                <div className="flex flex-col"><span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">SLA Deadline</span> <strong>{new Date(selected.due_date).toLocaleDateString()}</strong></div>
+              </div>
+
+              {selected.expense_id.approval_history && selected.expense_id.approval_history.length > 0 && (
+                <div className="mt-4 px-1">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter block mb-2">Audit History</span>
+                  <div className="space-y-2 max-h-[150px] overflow-y-auto pr-2 scrollbar-thin">
+                    {selected.expense_id.approval_history.map((h: any, i: number) => (
+                      <div key={i} className="flex gap-3 text-xs p-2 bg-muted/20 border-l-2 border-primary/30 rounded-r-md">
+                        <div className="font-bold flex-shrink-0 w-16">{h.role}:</div>
+                        <div className="flex-1 italic">"{h.comment || 'No comment'}"</div>
+                        <div className="text-muted-foreground font-mono">{h.status.toUpperCase()}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {selected.group_progress && (
+                 <div className="bg-primary/5 rounded-lg p-3 border border-primary/20 space-y-2 mt-2">
+                    <div className="flex justify-between items-center text-sm">
+                       <span className="font-semibold text-primary flex items-center gap-1">
+                          Group Progress <span className="text-xs font-normal text-muted-foreground ml-1">({selected.rule?.type || 'ALL'} required)</span>
+                       </span>
+                       <span className="text-muted-foreground">{selected.group_progress.approved_count} / {selected.group_progress.total_count} Approved</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                       <div 
+                         className="h-full bg-primary transition-all duration-500 ease-in-out" 
+                         style={{ width: `${Math.min(100, Math.max(0, selected.group_progress.percentage_complete * 100))}%` }} 
+                       />
+                    </div>
+                 </div>
+              )}
               
-              <div className="bg-muted/30 rounded-lg p-4 text-center text-sm text-muted-foreground border border-dashed">
-                  Access Receipt File via API logic here
-              </div>
+              {selected.expense_id.receipt_ids && selected.expense_id.receipt_ids.length > 0 ? (
+                <div className="space-y-2 mt-4">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter block mb-2">Attached Proof of Purchase</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selected.expense_id.receipt_ids.map((r: any, i: number) => {
+                      const fileUrl = r.file_url.startsWith('http') ? r.file_url : `http://localhost:3000${r.file_url}`;
+                      const isImage = r.file_type?.startsWith('image/') || r.file_url.match(/\.(jpg|jpeg|png|gif)$/i);
+                      
+                      return (
+                        <div key={i} className="flex flex-col gap-1">
+                          <a 
+                            href={fileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="flex flex-col bg-muted/40 rounded-lg border hover:bg-muted/60 transition-all group overflow-hidden"
+                          >
+                            {isImage ? (
+                               <div className="h-24 w-full overflow-hidden bg-black/5 flex items-center justify-center border-b">
+                                  <img 
+                                    src={fileUrl} 
+                                    alt="Receipt Preview" 
+                                    className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                    onError={(e: any) => e.target.src = 'https://placehold.co/200x200?text=Receipt'}
+                                  />
+                               </div>
+                            ) : (
+                               <div className="h-24 w-full flex items-center justify-center bg-primary/5 border-b">
+                                  <Upload className="h-8 w-8 text-primary/40" />
+                               </div>
+                            )}
+                            <div className="p-2 flex items-center justify-between">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-bold truncate">Receipt #{i+1}</p>
+                                <p className="text-[9px] text-muted-foreground uppercase">{r.file_type?.split('/')[1] || 'PDF'}</p>
+                              </div>
+                              <Eye className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
+                            </div>
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-muted/30 rounded-lg p-6 text-center text-xs text-muted-foreground border border-dashed mt-4">
+                   <X className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                   No physical receipts attached to this request.
+                </div>
+              )}
 
               {selected.status === "PENDING" && (
                 <div className="space-y-3 pt-3">

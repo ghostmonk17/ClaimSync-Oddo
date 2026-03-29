@@ -122,43 +122,43 @@ export default function AddExpense() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!receipt) {
-       toast({ title: "Receipt missing", description: "You must attach a receipt physically before submitting.", variant: "destructive" });
-       return;
-    }
-
-    if (receipt.size > MAX_FILE_SIZE) {
+    if (receipt && receipt.size > MAX_FILE_SIZE) {
        toast({ title: "File too large", description: "Limit is 5MB.", variant: "destructive" });
        return;
     }
 
     setProgressStep("creating");
 
-    // Start Phase 1 Sequence
+    // Start Phase 1 Sequence: Create Draft
     createDraftMutation.mutate({
       ...form, 
       amount: parseFloat(form.amount)
     }, {
       onSuccess: (draftResponse) => {
-         const expenseId = draftResponse.data._id;
-         
-         // Start Phase 2 Sequence
-         setProgressStep("uploading");
-         uploadReceiptMutation.mutate({ file: receipt, expenseId }, {
-            onSuccess: (uploadRes) => {
-               if (uploadRes.data?.is_duplicate) {
-                  toast({ title: "Duplicate Detected", description: "This receipt was already added. Flagging for review." });
-               }
-               
-               setProgressStep("submitting");
-               
-               setTimeout(() => {
-                 // Start Phase 3 Sequence
-                 submitExpenseMutation.mutate(expenseId);
-               }, 100); 
-
-            }
-         });
+          const expenseId = draftResponse.data._id;
+          
+          if (receipt) {
+             // Start Phase 2 Sequence: Upload File
+             setProgressStep("uploading");
+             uploadReceiptMutation.mutate({ file: receipt, expenseId }, {
+                onSuccess: (uploadRes) => {
+                   if (uploadRes.data?.is_duplicate) {
+                      toast({ title: "Duplicate Detected", description: "This receipt was already added. Flagging for review." });
+                   }
+                   
+                   setProgressStep("submitting");
+                   setTimeout(() => {
+                     submitExpenseMutation.mutate(expenseId);
+                   }, 100); 
+                }
+             });
+          } else {
+             // SKIP Phase 2 and Go Straight to Submission
+             setProgressStep("submitting");
+             setTimeout(() => {
+                submitExpenseMutation.mutate(expenseId);
+             }, 100);
+          }
       }
     });
   };
@@ -237,7 +237,7 @@ export default function AddExpense() {
 
             <div className="flex gap-3">
                <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={isProcessing}>Cancel</Button>
-               <Button type="submit" disabled={!form.amount || !form.category || !receipt || isProcessing} className="min-w-32">
+               <Button type="submit" disabled={!form.amount || !form.category || isProcessing} className="min-w-32">
                   {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Submit Expense"}
                </Button>
             </div>

@@ -105,7 +105,24 @@ export default function EmployeeDashboard() {
                        {e.currency} {(e.amount || 0).toFixed(2)}
                     </td>
                     <td className="p-3 hidden md:table-cell text-muted-foreground">{new Date(e.date).toLocaleDateString()}</td>
-                    <td className="p-3"><StatusBadge status={e.status?.toLowerCase() || 'draft'} /></td>
+                    <td className="p-3">
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <StatusBadge status={e.status?.toLowerCase() || 'draft'} />
+                        {e.pending_roles && e.pending_roles.length > 0 && (
+                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider bg-muted/40 px-1.5 py-0.5 rounded">
+                            Step {e.current_step}: {e.pending_roles.join(', ')}
+                          </span>
+                        )}
+                        {e.parallel_progress && (
+                           <div className="w-full min-w-[100px] bg-muted rounded-full h-1.5 mt-0.5 overflow-hidden" title={`${e.parallel_progress.approved_count}/${e.parallel_progress.total_count} approved (${e.parallel_progress.ruleType})`}>
+                              <div 
+                                className="bg-primary h-1.5 rounded-full transition-all" 
+                                style={{ width: `${Math.max(0, Math.min(100, e.parallel_progress.percentage_complete * 100))}%` }} 
+                              />
+                           </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-3 text-right">
                        {e.status === 'DRAFT' && (
                          <Button variant="ghost" size="sm" className="h-7 text-primary hover:bg-primary/10" onClick={() => navigate(`/employee/expenses/${e._id}/edit`)}>

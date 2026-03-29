@@ -111,37 +111,70 @@ class ExpenseService {
          throw new Error('Only DRAFT expenses can be submitted');
       }
 
-      // 1. Validate receipt conditions
+      // 1. Evaluate receipt conditions for policy engine
       const hasReceipt = expense.receipt_ids && expense.receipt_ids.length > 0;
-      const declaredMissing = expense.flags && expense.flags.some(f => f.type === 'MISSING_RECEIPT');
-      const hasBlockingViolations = expense.violations && expense.violations.length > 0;
 
-      if (!hasReceipt && !declaredMissing) {
-        throw new Error('Cannot submit expense without a receipt or a missing receipt declaration');
+      // --- DYNAMIC ADMIN POLICY ENGINE EVALUATION ---
+      const Policy = require('../policy/policy.model');
+      // Look for a specific rule matching the expense category
+      const activePolicy = await Policy.findOne({ 
+         company_id: expense.company_id, 
+         category: new RegExp(`^${expense.category}$`, 'i') 
+      }).lean();
+
+      let activeViolations = expense.violations || [];
+      const activeFlags = expense.flags || [];
+
+      if (activePolicy) {
+         // Evaluate Max Amount Threshold
+         const amountVal = expense.converted_amount || expense.amount;
+         if (amountVal > activePolicy.maxAmount) {
+            const ruleObj = {
+               type: 'POLICY_LIMIT_EXCEEDED',
+               field: 'amount',
+               message: `Amount exceeds the company policy limit of ${activePolicy.maxAmount} for ${expense.category}`
+            };
+            if (activePolicy.violationType === 'Hard') activeViolations.push(ruleObj);
+            else activeFlags.push(ruleObj);
+         }
+
+         // Evaluate Receipt Requirement Override
+         if (activePolicy.receiptRequired && !hasReceipt) {
+            const receiptRuleObj = {
+               type: 'POLICY_RECEIPT_MANDATORY',
+               field: 'receipt',
+               message: `Company policy strictly mandates receipts for ${expense.category}`
+            };
+            if (activePolicy.violationType === 'Hard') {
+               // Hard block entirely out of flow before submission
+               throw new Error(receiptRuleObj.message);
+            } else {
+               activeViolations.push(receiptRuleObj);
+            }
+         }
       }
-
-      // We actively permit Violations natively here since they are passed immediately 
-      // into the Decision Engine and organically scale the Risk Score, triggering automatic Manager + Finance escalations.
 
       // 2. Decision Support Engine (Analysis & Risk)
       const analysisFlags = await analysisService.analyzeExpense(expense, userId);
       
-      // Merge unique flags
-      const existingFlags = expense.flags || [];
+      // Merge unique flags securely
       const mergedFlagsMap = new Map();
-      existingFlags.forEach(f => mergedFlagsMap.set(`${f.type}-${f.field}`, f));
+      activeFlags.forEach(f => mergedFlagsMap.set(`${f.type}-${f.field}`, f));
       analysisFlags.forEach(f => mergedFlagsMap.set(`${f.type}-${f.field}`, f));
       
       const finalFlags = Array.from(mergedFlagsMap.values());
-      
-      const { risk_score, risk_breakdown } = riskService.computeRiskScore(expense, finalFlags, expense.violations || []);
+      const { risk_score, risk_breakdown } = riskService.computeRiskScore(expense, finalFlags, activeViolations);
 
       // Mount into memory for local calculation
       expense.flags = finalFlags;
+      expense.violations = activeViolations; // Inject back updated violations
       expense.risk_score = risk_score;
 
       // 3. Workflow Builder dynamically structures steps natively 
       const employee = await userRepository.findById(userId);
+      if (!employee) {
+         throw new Error('Submitting user not found in the current structural hierarchy. Please refresh your session.');
+      }
       const workflowSteps = await workflowService.buildWorkflowSteps(expense, employee);
 
       // Save initial approval tasks strictly cleanly without duplicates
@@ -151,6 +184,10 @@ class ExpenseService {
             step: step.step,
             role: step.role,
             approver_id: step.approver_id,
+            group_id: step.group_id || null,
+            is_final_step: step.is_final_step || false,
+            required_approvals: step.required_approvals || null,
+            rule: step.rule || null,
             due_date: step.due_date,
             status: 'PENDING'
          });

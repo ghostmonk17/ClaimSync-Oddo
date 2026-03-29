@@ -18,7 +18,10 @@ const userController = require('./modules/user/user.controller');
 const app = express();
 
 // Security and Logging Middlwares
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
 app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
@@ -87,7 +90,21 @@ apiRouter.post('/approvals/:id/approve', authMiddleware, idempotencyMiddleware, 
 apiRouter.post('/approvals/:id/reject', authMiddleware, idempotencyMiddleware, (req, res, next) => approvalController.rejectExpense(req, res, next));
 apiRouter.post('/approvals/:id/send-back', authMiddleware, idempotencyMiddleware, (req, res, next) => approvalController.sendBackExpense(req, res, next));
 
+const workflowConfigController = require('./modules/workflow/workflowConfig.controller');
+apiRouter.get('/workflow-config', authMiddleware, authorize(['ADMIN']), (req, res, next) => workflowConfigController.getConfig(req, res, next));
+apiRouter.post('/workflow-config', authMiddleware, authorize(['ADMIN']), idempotencyMiddleware, (req, res, next) => workflowConfigController.saveConfig(req, res, next));
+
+const companyController = require('./modules/company/company.controller');
+apiRouter.get('/company', authMiddleware, authorize(['ADMIN']), (req, res, next) => companyController.getCompany(req, res, next));
+apiRouter.put('/company', authMiddleware, authorize(['ADMIN']), idempotencyMiddleware, (req, res, next) => companyController.updateCompany(req, res, next));
+
+const policyController = require('./modules/policy/policy.controller');
+apiRouter.get('/policies', authMiddleware, authorize(['ADMIN']), (req, res, next) => policyController.getPolicies(req, res, next));
+apiRouter.post('/policies', authMiddleware, authorize(['ADMIN']), idempotencyMiddleware, (req, res, next) => policyController.addPolicy(req, res, next));
+apiRouter.delete('/policies/:id', authMiddleware, authorize(['ADMIN']), (req, res, next) => policyController.deletePolicy(req, res, next));
+
 app.use('/api/v1', apiRouter);
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));

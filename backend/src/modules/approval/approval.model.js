@@ -18,6 +18,13 @@ const approvalSchema = new mongoose.Schema({
   comment: { type: String },
   actioned_at: { type: Date },
   due_date: { type: Date },
+  group_id: { type: mongoose.Schema.Types.ObjectId, index: true }, // For PARALLEL step grouping
+  is_final_step: { type: Boolean, default: false },
+  required_approvals: { type: Number },
+  rule: {
+    type: { type: String, enum: ['ALL', 'PERCENTAGE', 'ANY'] },
+    percentage: { type: Number, min: 0, max: 1 }
+  },
   escalated: { type: Boolean, default: false }
 }, { timestamps: { createdAt: 'created_at', updatedAt: false } });
 

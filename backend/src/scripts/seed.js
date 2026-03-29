@@ -31,6 +31,7 @@ async function seedDatabase() {
     // 1. Create CFO (Level 4 - Top Approver)
     const cfo = await User.create({
       company_id: companyId,
+      name: 'Chief Financial Officer',
       email: 'cfo@globaltech.com',
       password_hash: hashedPass,
       role: 'CFO',
@@ -41,6 +42,7 @@ async function seedDatabase() {
     // 2. Create Finance Manager (Level 3 - Policy Auditor)
     const finance = await User.create({
       company_id: companyId,
+      name: 'Finance Compliance',
       email: 'finance@globaltech.com',
       password_hash: hashedPass,
       role: 'FINANCE',
@@ -51,6 +53,7 @@ async function seedDatabase() {
     // 3. Create General Manager (Level 2 - Direct Approver)
     const manager = await User.create({
       company_id: companyId,
+      name: 'Regional Manager',
       email: 'manager@globaltech.com',
       password_hash: hashedPass,
       role: 'MANAGER',
@@ -62,6 +65,7 @@ async function seedDatabase() {
     // 4. Create Employee (Level 1 - Individual Contributor)
     const employee = await User.create({
       company_id: companyId,
+      name: 'John Employee',
       email: 'employee@globaltech.com',
       password_hash: hashedPass,
       role: 'EMPLOYEE',

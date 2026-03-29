@@ -51,8 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem("erms_user", JSON.stringify(fullUser));
         } catch (err) {
           console.error("Failed to fetch user profile:", err);
-          // If token is invalid, we might want to logout, but for now just clear local storage
-          // localStorage.removeItem("erms_user");
+          // Invalid token or wiped seed database, dump cache safely
+          localStorage.removeItem("erms_user");
+          localStorage.removeItem("erms_token");
+          setUser(null);
         }
       }
       setIsLoading(false);

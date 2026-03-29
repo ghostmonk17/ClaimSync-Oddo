@@ -29,6 +29,7 @@ const roleMenus = {
     { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
     { title: "Users", url: "/admin/users", icon: Users },
     { title: "Policy", url: "/admin/policy", icon: Shield },
+    { title: "Workflow", url: "/admin/workflow-config", icon: CheckSquare },
     { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
     { title: "Currency", url: "/admin/currency", icon: DollarSign },
     { title: "Settings", url: "/admin/settings", icon: Settings },
@@ -48,10 +49,12 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+            <div className="h-8 w-8 shrink-0 rounded-lg bg-primary flex items-center justify-center">
               <Receipt className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-sm text-sidebar-foreground">ClaimSync</span>
+            <span className="font-semibold text-sm text-sidebar-foreground truncate max-w-[140px]" title={user.company || "ClaimSync"}>
+               {user.company || "ClaimSync"}
+            </span>
           </div>
         )}
         {collapsed && (

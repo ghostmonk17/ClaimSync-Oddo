@@ -9,7 +9,7 @@ class ApprovalService {
     const tasks = [];
     
     // 1. Direct assignments (approver_id match mapping MANAGER roles)
-    const directAssignments = await approvalRepository.findPendingByApprover(user._id, user.role);
+    const directAssignments = await approvalRepository.findPendingByApprover(user.user_id, user.role);
     tasks.push(...directAssignments);
 
     // 2. Queue assignments (matching user role when exact ID unbound like FINANCE or SENIOR Queues)
@@ -18,7 +18,23 @@ class ApprovalService {
     tasks.push(...roleBasedQueues);
 
     // 3. Deduplicate visually
-    return tasks.filter((v, i, a) => a.findIndex(t => (t._id === v._id)) === i);
+    const uniqueTasks = tasks.filter((v, i, a) => a.findIndex(t => (t._id === v._id)) === i);
+
+    // 4. Augment with group progress if part of a PARALLEL step
+    for (const task of uniqueTasks) {
+       if (task.group_id) {
+          const groupTasks = await approvalRepository.findByGroupId(task.group_id);
+          const total_count = groupTasks.length;
+          const approved_count = groupTasks.filter(t => t.status === 'APPROVED').length;
+          task.group_progress = {
+             approved_count,
+             total_count,
+             percentage_complete: total_count > 0 ? (approved_count / total_count) : 0
+          };
+       }
+    }
+
+    return uniqueTasks;
   }
 
   async executeApprovalAction(approvalId, action, comment, actionedBy) {
@@ -73,7 +89,7 @@ class ApprovalService {
     await auditService.log('Approval', approval._id, 'APPROVAL_APPROVED', actionedBy, null, { comment, cfoOverride: isCfoOverride });
 
     if (isCfoOverride) {
-      // Immediate force approval globally natively bypassing further chains
+      await approvalRepository.cancelAllPendingForExpense(expense._id);
       await expenseRepository.findByIdAndUpdate(expense._id, { 
         status: 'APPROVED', 
         approval_status: 'APPROVED',
@@ -83,19 +99,54 @@ class ApprovalService {
       return;
     }
 
-    // Assess next step safely checking step progression bounds exactly
+    // Parallel Group Evaluation
+    if (approval.group_id) {
+       const groupTasks = await approvalRepository.findByGroupId(approval.group_id);
+       const totalCount = groupTasks.length;
+       const approvedCount = groupTasks.filter(t => t.status === 'APPROVED').length;
+       
+       let requirementMet = false;
+       const ruleType = approval.rule?.type || 'ALL';
+       
+       if (ruleType === 'ALL') {
+          requirementMet = approvedCount === totalCount;
+       } else if (ruleType === 'PERCENTAGE') {
+          const percentage = approval.rule?.percentage || 1;
+          requirementMet = (approvedCount / totalCount) >= percentage;
+       } else if (ruleType === 'ANY') {
+          requirementMet = approvedCount >= (approval.required_approvals || 1);
+       }
+
+       if (!requirementMet) {
+          // Requirement not yet met; just log history and wait for others
+          await expenseRepository.findByIdAndUpdate(expense._id, { 
+            $push: { approval_history: appendHistory } 
+          });
+          await auditService.log('Expense', expense._id, 'PARALLEL_APPROVAL_PROGRESS', actionedBy, null, { approvedCount, totalCount });
+          return;
+       } else {
+          // Group requirement met! Cancel any remaining pending tasks in the same group 
+          const pendingInGroup = await approvalRepository.findPendingByGroupId(approval.group_id);
+          for (const pt of pendingInGroup) {
+             await approvalRepository.updateStatus(pt._id, 'SENT_BACK', 'Group requirement already met', new Date());
+          }
+          await auditService.log('Expense', expense._id, 'APPROVAL_GROUP_COMPLETED', actionedBy, null, { ruleType });
+       }
+    }
+
+    // Assess next step
     const nextStepNum = expense.current_step + 1;
     const nextStepApprovalExists = await approvalRepository.findPendingStepForExpense(expense._id, nextStepNum);
 
-    if (nextStepApprovalExists) {
-      // Progressively slide to Next Sequence natively updating Expense pointer
+    if (nextStepApprovalExists && !approval.is_final_step) {
+      // Progress to Next Sequence
       await expenseRepository.findByIdAndUpdate(expense._id, { 
         current_step: nextStepNum,
         $push: { approval_history: appendHistory } 
       });
-      // Notify next approver structurally mapping if needed here natively
     } else {
-      // Absolutely Final Step globally reached cleanly!
+      // Final Step reached cleanly!
+      await approvalRepository.cancelAllPendingForExpense(expense._id);
       await expenseRepository.findByIdAndUpdate(expense._id, { 
         status: 'APPROVED', 
         approval_status: 'APPROVED',
@@ -107,6 +158,7 @@ class ApprovalService {
 
   async handleReject(approval, expense, comment, actionedBy, appendHistory) {
     await approvalRepository.updateStatus(approval._id, 'REJECTED', comment, new Date());
+    await approvalRepository.cancelAllPendingForExpense(expense._id);
     await expenseRepository.findByIdAndUpdate(expense._id, { 
         status: 'REJECTED', 
         approval_status: 'REJECTED',
@@ -119,6 +171,7 @@ class ApprovalService {
 
   async handleSendBack(approval, expense, comment, actionedBy, appendHistory) {
     await approvalRepository.updateStatus(approval._id, 'SENT_BACK', comment, new Date());
+    await approvalRepository.cancelAllPendingForExpense(expense._id);
     // Send back fully unlocks the DRAFT status inherently
     await expenseRepository.findByIdAndUpdate(expense._id, { 
         status: 'SENT_BACK', 

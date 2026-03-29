@@ -13,7 +13,7 @@ const violationSchema = new mongoose.Schema({
 }, { _id: false });
 
 const expenseSchema = new mongoose.Schema({
-  user_id: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   company_id: { type: mongoose.Schema.Types.ObjectId, required: true },
   amount: { type: Number, required: true },
   currency: { type: String, required: true },

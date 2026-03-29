@@ -40,6 +40,10 @@ class UserRepository {
     // to aggregate and count active approvals for true load balancing later.
     return User.findOne({ role, company_id: companyId, is_active: true }).lean();
   }
+
+  async findAllActiveByRoleAndCompany(roles, companyId) {
+    return User.find({ role: { $in: roles }, company_id: companyId, is_active: true }).lean();
+  }
 }
 
 module.exports = new UserRepository();

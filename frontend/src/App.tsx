@@ -14,11 +14,10 @@ import AddExpense from "./pages/employee/AddExpense";
 import EditExpense from "./pages/employee/EditExpense";
 import EmployeeReports from "./pages/employee/EmployeeReports";
 import ManagerApprovals from "./pages/manager/ManagerApprovals";
-import FinanceDashboard from "./pages/finance/FinanceDashboard";
-import CfoDashboard from "./pages/cfo/CfoDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminPolicy from "./pages/admin/AdminPolicy";
+import AdminWorkflow from "./pages/admin/AdminWorkflow";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminCurrency from "./pages/admin/AdminCurrency";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -46,13 +45,14 @@ const App = () => (
               <Route path="/employee/expenses/:id/edit" element={<EditExpense />} />
               <Route path="/employee/reports" element={<EmployeeReports />} />
               <Route path="/manager/approvals" element={<ManagerApprovals />} />
-              <Route path="/finance/dashboard" element={<FinanceDashboard />} />
-              <Route path="/finance/approvals" element={<FinanceDashboard />} />
-              <Route path="/cfo/dashboard" element={<CfoDashboard />} />
-              <Route path="/cfo/approvals" element={<CfoDashboard />} />
+              <Route path="/finance/dashboard" element={<ManagerApprovals />} />
+              <Route path="/finance/approvals" element={<ManagerApprovals />} />
+              <Route path="/cfo/dashboard" element={<ManagerApprovals />} />
+              <Route path="/cfo/approvals" element={<ManagerApprovals />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/policy" element={<AdminPolicy />} />
+              <Route path="/admin/workflow-config" element={<AdminWorkflow />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/admin/currency" element={<AdminCurrency />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
