@@ -109,6 +109,20 @@ class ParsingService {
        }
     }
 
+    // 5. Line Items Extraction (Organic pattern discovery)
+    const items = [];
+    for (const line of lines) {
+       // Match "Item Description ... $12.34"
+       const m = line.match(/(.+?)\s+[\$€£]?\s*(\d+[\.,]\d{2})\s*$/);
+       if (m && !line.match(/total|tax|subtotal|balance|due|change|tip|gratuity|card|visa|cash/i)) {
+          const itemDesc = m[1].replace(/[^\w\s\.\-]/gi, '').trim();
+          const itemAmount = parseFloat(m[2].replace(',', '.'));
+          if (itemDesc.length > 2 && itemAmount > 0) {
+             items.push({ description: itemDesc, amount: itemAmount });
+          }
+       }
+    }
+
     const confidenceScore = fieldsFound / totalFields;
 
     return {
@@ -118,6 +132,7 @@ class ParsingService {
         merchant: merchant || "UNKNOWN", 
         currency,
         category,
+        items,
         description: merchant ? `Receipt from ${merchant}` : "Expense submission"
       },
       confidenceScore 

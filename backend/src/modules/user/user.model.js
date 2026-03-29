@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
   company_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true, index: true },
+  name: { type: String, required: true },
   email: { type: String, required: true, unique: true, index: true },
   password_hash: { type: String }, // Nullable initially for invites
   role: { 

@@ -68,6 +68,7 @@ const approvalController = require('./modules/approval/approval.controller');
 // ... 
 // User Management Routes (Protected + Role-Bound)
 apiRouter.post('/users', authMiddleware, authorize(['ADMIN']), idempotencyMiddleware, userController.createUser);
+apiRouter.get('/users', authMiddleware, authorize(['ADMIN']), userController.getUsers);
 
 // Expenses routes (Protected structurally)
 apiRouter.post('/expenses', authMiddleware, idempotencyMiddleware, expenseController.createExpense);

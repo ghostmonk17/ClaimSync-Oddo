@@ -19,14 +19,38 @@ class OCRService {
       // Native PDF Parsing Handler leveraging precise document text layer extraction
       // Use strictly provided mimetype if available, otherwise fallback to explicit string extensions organically
       if ((mimetype && mimetype === 'application/pdf') || fileExtension === '.pdf') {
-         const pdfParse = require('pdf-parse');
+         const { PDFParse } = require('pdf-parse');
          const dataBuffer = fs.readFileSync(fullPath);
          
-         const data = await pdfParse(dataBuffer);
+         const parser = new PDFParse({ data: dataBuffer });
+         const textTarget = await parser.getText();
+         const info = await parser.getInfo();
+         
+         let extractedText = textTarget.text.trim();
+         
+         // If text layer is extremely sparse or missing (likely a scanned image inside a PDF),
+         // we perform Visual OCR on every page natively.
+         if (extractedText.length < 50) {
+            const screenshotResult = await parser.getScreenshot({ scale: 2 });
+            const pageTexts = [];
+            
+            const worker = await Tesseract.createWorker('eng');
+            try {
+               for (const page of screenshotResult.pages) {
+                  const { data: { text } } = await worker.recognize(page.data);
+                  pageTexts.push(text);
+               }
+               extractedText = pageTexts.join('\n');
+            } finally {
+               await worker.terminate();
+            }
+         }
+         
+         await parser.destroy();
          
          return {
-            text: data.text,
-            rawResponse: { confidence: 100, pdf_pages: data.numpages }
+            text: extractedText,
+            rawResponse: { confidence: 100, pdf_pages: info.total }
          };
       }
       

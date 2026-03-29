@@ -22,6 +22,11 @@ const expenseSchema = new mongoose.Schema({
   conversion_rate_snapshot: { type: Number },
   conversion_timestamp: { type: Date },
   category: { type: String },
+  merchant: { type: String }, // Top-level merchant/restaurant name
+  items: [{
+    description: { type: String },
+    amount: { type: Number }
+  }], // Line items extracted
   date: { type: Date, required: true },
   description: { type: String },
   receipt_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Receipt' }],
@@ -34,7 +39,11 @@ const expenseSchema = new mongoose.Schema({
     amount: { type: Number },
     date: { type: Date },
     merchant: { type: String },
-    currency: { type: String }
+    currency: { type: String },
+    items: [{
+        description: { type: String },
+        amount: { type: Number }
+    }]
   },
   status: { 
     type: String, 

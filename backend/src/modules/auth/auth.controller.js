@@ -78,14 +78,10 @@ class AuthController {
 
   async me(req, res, next) {
     try {
-      // Return decoded JWT mapping natively
+      const user = await authService.getMe(req.user.user_id);
       return res.status(200).json({
         success: true,
-        data: {
-          user_id: req.user.user_id,
-          role: req.user.role,
-          company_id: req.user.company_id
-        }
+        data: user
       });
     } catch (error) {
       next(error);

@@ -29,6 +29,7 @@ class AuthService {
       // 4. Create Admin User
       const adminParams = {
         company_id: company._id,
+        name: companyData.name, // Save admin name exactly matching company creator
         email: adminData.email,
         password_hash: hashedPass,
         role: 'ADMIN',
@@ -140,8 +141,13 @@ class AuthService {
 
     await userRepository.updateById(userId, { password_hash: hashedNewPass });
     await auditService.log('User', userId, 'PASSWORD_CHANGED', userId, null, null);
-
     return { success: true };
+  }
+
+  async getMe(userId) {
+    const user = await userRepository.findByIdPopulated(userId);
+    if (!user) throw new Error('User not found');
+    return user;
   }
 }
 

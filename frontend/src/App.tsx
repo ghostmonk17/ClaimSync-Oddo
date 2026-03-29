@@ -21,6 +21,7 @@ import AdminPolicy from "./pages/admin/AdminPolicy";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminCurrency from "./pages/admin/AdminCurrency";
 import AdminSettings from "./pages/admin/AdminSettings";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/admin/currency" element={<AdminCurrency />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

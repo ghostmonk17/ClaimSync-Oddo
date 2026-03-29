@@ -94,7 +94,8 @@ class ReconciliationService {
       amount: receipt.ocr_data?.amount || expense.amount,
       date: receipt.ocr_data?.date || expense.date,
       merchant: receipt.ocr_data?.merchant || expense.merchant || 'UNKNOWN',
-      currency: receipt.ocr_data?.currency || expense.currency
+      currency: receipt.ocr_data?.currency || expense.currency,
+      items: receipt.ocr_data?.items || []
     };
 
     // Merge existing flags and violations with new ones
@@ -102,6 +103,9 @@ class ReconciliationService {
     const updatedExpense = await expenseRepository.findByIdAndUpdate(expenseId, {
        flags,
        violations,
+       merchant: receipt.ocr_data?.merchant || expense.merchant,
+       category: receipt.ocr_data?.category || expense.category,
+       items: receipt.ocr_data?.items || [],
        confidence_score: receipt.confidence_score,
        finalized_data
     });

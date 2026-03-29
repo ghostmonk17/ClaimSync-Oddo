@@ -7,7 +7,7 @@ const auditService = require('../audit/audit.service');
 class UserService {
   async createUser(adminId, companyId, payload) {
     try {
-      const { email, role, manager_id } = payload;
+      const { name, email, role, manager_id } = payload;
 
       const existingUser = await userRepository.findByEmail(email);
       if (existingUser) {
@@ -17,6 +17,7 @@ class UserService {
       // Optional: Admin bounds enforcing roles
       const userPayload = {
         company_id: companyId,
+        name: name,
         email: email,
         password_hash: null, // Null temporarily until configured locally
         role: role,
@@ -83,6 +84,10 @@ class UserService {
         role: user.role,
         company_id: user.company_id
      };
+  }
+
+  async getUsersByCompany(companyId) {
+    return userRepository.findByCompany(companyId);
   }
 }
 

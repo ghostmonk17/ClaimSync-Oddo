@@ -9,6 +9,7 @@ export interface User {
   email: string;
   role: UserRole;
   company?: string;
+  manager?: string;
   currency?: string;
   token?: string; // Appending the JWT physically
 }
@@ -28,29 +29,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("erms_user");
-    if (stored) {
-       try {
-         setUser(JSON.parse(stored));
-       } catch (err) {
-         localStorage.removeItem("erms_user");
-       }
-    }
-    setIsLoading(false);
+    const fetchUser = async () => {
+      const stored = localStorage.getItem("erms_user");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const res = await api.get('/auth/me');
+          const userData = res.data.data;
+          
+          const fullUser: User = {
+            id: userData._id || userData.user_id,
+            name: userData.name,
+            email: userData.email,
+            role: (userData.role.toLowerCase()) as UserRole,
+            company: userData.company_id?.name || "Independent",
+            manager: userData.manager_id?.name || "None",
+            token: parsed.token
+          };
+          
+          setUser(fullUser);
+          localStorage.setItem("erms_user", JSON.stringify(fullUser));
+        } catch (err) {
+          console.error("Failed to fetch user profile:", err);
+          // If token is invalid, we might want to logout, but for now just clear local storage
+          // localStorage.removeItem("erms_user");
+        }
+      }
+      setIsLoading(false);
+    };
+
+    fetchUser();
   }, []);
 
   const login = async (email: string, _password: string): Promise<User> => {
     try {
       const res = await api.post('/auth/login', { email, password: _password });
-      const { token, role } = res.data.data;
+      const { token } = res.data.data;
 
-      // Ensure lowercase mapping for React Router UI guards natively
-      const roleMapped = role.toLowerCase() as UserRole;
+      // Persist token immediately for the next 'me' call
+      localStorage.setItem("erms_token", token);
+      
+      const meRes = await api.get('/auth/me');
+      const userData = meRes.data.data;
       
       const sessionUser: User = {
-         id: new Date().getTime().toString(), 
-         email: email, 
-         role: roleMapped, 
+         id: userData._id || userData.user_id,
+         name: userData.name,
+         email: userData.email,
+         role: (userData.role.toLowerCase()) as UserRole,
+         company: userData.company_id?.name || "Independent",
+         manager: userData.manager_id?.name || "None",
          token 
       };
 

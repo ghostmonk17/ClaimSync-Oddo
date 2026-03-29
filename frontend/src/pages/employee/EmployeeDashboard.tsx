@@ -69,11 +69,12 @@ export default function EmployeeDashboard() {
                   <p>No expenses generated yet.</p>
                </div>
             ) : (
-             <table className="w-full text-sm">
+              <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/30">
-                  <th className="text-left p-3 font-medium text-muted-foreground">Description</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Merchant</th>
                   <th className="text-left p-3 font-medium text-muted-foreground hidden sm:table-cell">Category</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell text-center">Lines</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Amount</th>
                   <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Date</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
@@ -82,9 +83,21 @@ export default function EmployeeDashboard() {
               <tbody>
                 {recentExpenses.map((e: any) => (
                   <tr key={e._id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                    <td className="p-3 font-medium">{e.description || 'N/A'}</td>
-                    <td className="p-3 hidden sm:table-cell text-muted-foreground capitalize">{e.category}</td>
-                    <td className="p-3">{e.currency} {(e.amount || 0).toFixed(2)}</td>
+                    <td className="p-3">
+                       <div className="font-medium text-primary leading-tight">{e.merchant || 'UNKNOWN'}</div>
+                       <div className="text-[10px] text-muted-foreground truncate max-w-[150px]">{e.description}</div>
+                    </td>
+                    <td className="p-3 hidden sm:table-cell text-muted-foreground capitalize">
+                       <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-medium border border-slate-200 dark:border-slate-700">
+                          {e.category || 'Other'}
+                       </span>
+                    </td>
+                    <td className="p-3 hidden md:table-cell text-muted-foreground text-center font-mono">
+                       {e.items?.length || 0}
+                    </td>
+                    <td className="p-3 font-semibold text-teal-600 dark:text-teal-400">
+                       {e.currency} {(e.amount || 0).toFixed(2)}
+                    </td>
                     <td className="p-3 hidden md:table-cell text-muted-foreground">{new Date(e.date).toLocaleDateString()}</td>
                     <td className="p-3"><StatusBadge status={e.status?.toLowerCase() || 'draft'} /></td>
                   </tr>

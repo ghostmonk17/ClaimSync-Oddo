@@ -17,7 +17,7 @@ api.interceptors.request.use(
     // 1. Inject Authentication from LocalStorage Auth Context
     const storedUser = localStorage.getItem("erms_user");
     let token = null;
-    
+
     if (storedUser) {
        try {
          const parsed = JSON.parse(storedUser);
@@ -25,6 +25,10 @@ api.interceptors.request.use(
        } catch (err) {
          console.warn("Could not parse user token");
        }
+    }
+
+    if (!token) {
+      token = localStorage.getItem("erms_token");
     }
 
     if (token) {
